@@ -1,5 +1,5 @@
 import pygame
-import numpy
+import numpys
 import random
 
 # Defining my colours
@@ -63,22 +63,24 @@ class Pipe:
 # new chemicals dependant on the prerequisites
 class BatchConverter:
 	def __init__(self, x, y, ctype, creqs, pipes, name, chance):
-		self.x = x
-		self.y = y
-		self.ctype = ctype
-		self.creqs = creqs
-		self.pipes = pipes
+		self.x 			= x
+		self.y 			= y
+		self.ctype 		= ctype
+		self.creqs 		= creqs
+		self.pipes 		= pipes
 		self.basechance = 25
-		self.thres = 100
-		self.total = 0
-		self.chance = chance
-		self.chemicals = numpy.zeros(8,int)
+		self.thres 		= 100
+		self.total 		= 0
+		self.chance		= chance
+		self.chemicals 	= numpy.zeros(8,int)
 		self.chemifuzzy = [[100,0,0]]*8
-		self.name = name
-		self.font_size = 28
-		self.font = pygame.font.SysFont("georgia", self.font_size)
+		
+		self.name 		= name
+		self.font_size 	= 28
+		self.font 		= pygame.font.SysFont("georgia", self.font_size)
+		self.color 		= BLACK
 		self.font.set_bold(1)
-		self.color = BLACK
+		
 		batchConverters.append(self)
 	def add(self, chemical):
 		self.chemicals[chemical.ctype] += 1
@@ -151,17 +153,18 @@ class BatchConverter:
 
 class ChemicalSource:
 	def __init__(self, x, y, ctype, pipes, chance):
-		self.font_size = 12
-		self.font = pygame.font.SysFont("georgia", self.font_size)
+		self.font_size 	= 12
+		self.font 		= pygame.font.SysFont("georgia", self.font_size)
 		self.font.set_bold(1)
-		self.x = x
-		self.y = y
-		self.ctype = ctype
-		self.pipes = pipes
-		self.thres = 100
-		self.total = 0
-		self.chance = chance
-		self.color = BLACK
+		
+		self.x 			= x
+		self.y 			= y
+		self.ctype		= ctype
+		self.pipes 		= pipes
+		self.thres 		= 100
+		self.total 		= 0
+		self.chance 	= chance
+		self.color 		= BLACK
 		sources.append(self)
 	def adapt(self):
 		nb = self.pipes[0].output
@@ -180,6 +183,15 @@ class ChemicalSource:
 		screen.blit(self.font.render(str(round(self.chance,2)), True, self.color), [self.x, self.y - 20])
 		pygame.draw.rect(screen,colours[self.ctype], (self.x, self.y, 20, 20),0)
 
+class Controller:
+	def __init__(self, batchReactors, sources, controls):
+		self.batchReactors 	= batchReactors.copy()
+		self.batchRN = len(self.batchReactors)
+		self.sources		= sources.copy()
+		self.input			= numpy.zeros((8, self.batchRN))
+		self.controlMatrix  = numpy.zeros((self.batchRN, ))
+		
+		for c in controls
 # Initialise pygame module
 pygame.init()
 # Create game window
