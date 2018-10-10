@@ -106,6 +106,7 @@ class BatchConverter:
 		self.font_size = 28
 		screen.blit(self.font.render(self.name, True, self.color), [self.x+20, self.y+12])
 		screen.blit(self.font.render(str(self.chance), True, self.color), [self.x-20, self.y-12])
+		screen.blit(self.font.render(str(numpy.count_nonzero(output_rate)), True, self.color), [900, 500])
 	def adapt(self):
 		chemsum = 0
 		for chem in self.chemicals:
@@ -117,8 +118,7 @@ class BatchConverter:
 		w = 15
 		h = 5
 		screen.blit(self.font.render(self.name, True, self.color), [x+5, y + 20])
-		if (self.name == "A"):
-			screen.blit(self.font.render(str(numpy.count_nonzero(output_rate)), True, self.color), [900, 500])
+			
 		index = 0
 		while (index < len(self.chemicals)):
 			if (self.creqs[index] == 1):
@@ -193,7 +193,11 @@ class Controller:
 		self.input			= numpy.zeros((1, self.nBatchReacts * 8 * 3))
 		self.controlMatrix  = numpy.zeros((self.nBatchReacts * 8 * 3, self.nSources))
 		self.output			= numpy.zeros((1, self.nSources))
-	
+		
+		self.font_size		= 28
+		self.font			= pygame.font.SysFont("georgia", self.font_size)
+		self.color			= BLACK
+		
 	def updateControls(self, ruleComps):
 		for c in ruleComps:
 			# format for c: [batch Reactor n., chemical n., fuzzy value n., source n., value]
@@ -232,7 +236,9 @@ class Controller:
 			
 		return True
 		
-	def step(self, output_rate):
+	def step(self):
+		global output_rate
+		
 		for pipe in self.pipes:
 			pipe.flow()
 		for source in self.sources:
@@ -244,6 +250,7 @@ class Controller:
 			if (batch.name == "A"):
 				output_rate = numpy.append(output_rate,[gen])
 				output_rate = output_rate[1:]
+				screen.blit(self.font.render("Test", True, self.color), [900, 500])
 
 	
 # Initialise pygame module
@@ -315,7 +322,7 @@ controller.updateControls([
 							[  1,   7,   2,   5,   -1  ],
 						  ])
 
-controller.step(output_rate)
+controller.step()
 
 # Begin game loop
 exit_flag = 0
@@ -335,15 +342,16 @@ while (exit_flag == 0):
 			# User hit SPACE -> Force flow
 			if event.key == pygame.K_SPACE:
 				if not auto:
-					controller.step(output_rate)
+					controller.step()
 						
 	# Automatically cycle through process every 0.5s
 	if auto:
 		new_time = pygame.time.get_ticks()
 		if (new_time - last_time > 100):
-			controller.step(output_rate)
+			controller.step()
 				
-			last_time = new_time		
+			last_time = new_time
+			
 	# Wash with clean background
 	screen.fill(WHITE)
 	# Draw UI
