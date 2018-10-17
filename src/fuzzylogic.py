@@ -16,6 +16,47 @@ YELLOW = (220, 220, 50)
 colours = [RED, GREEN, CYAN, BLUE, DARKGREEN, YELLOW, BLACK, GRAY]
 output_rate = numpy.zeros(100,int)
 
+# *************************\ NONE FUZZY LOGIC RELATED FUNCTIONS /*************************
+class Button():
+    def __init__(self, txt, location, action, size=(80, 30), font_name="georgia", font_size=16):
+        self.color 	= WHITE  # the static (normal) color
+        self.bg 	= WHITE  # actual background color, can change on mouseover
+        self.fg 	= BLACK  # text color
+        self.size 	= size
+
+        self.font = pygame.font.SysFont(font_name, font_size)
+        self.txt = txt
+        self.txt_surf = self.font.render(self.txt, 1, self.fg)
+        self.txt_rect = self.txt_surf.get_rect(center=[s//2 for s in self.size])
+
+        self.surface = pygame.surface.Surface(size)
+        self.rect = self.surface.get_rect(center=location)
+
+        self.call_back_ = action
+
+    def draw(self):
+        self.mouseover()
+
+        self.surface.fill(self.bg)
+        self.surface.blit(self.txt_surf, self.txt_rect)
+        screen.blit(self.surface, self.rect)
+
+    def mouseover(self):
+        self.bg = self.color
+        pos = pygame.mouse.get_pos()
+        if self.rect.collidepoint(pos):
+            self.bg = GRAY  # mouseover color
+
+    def call_back(self, controller):
+        self.call_back_(controller)
+		
+def mousebuttondown(buttons, controller):
+	pos = pygame.mouse.get_pos()
+	for button in buttons:
+		if button.rect.collidepoint(pos):
+			button.call_back(controller)
+
+
 # Chemical class
 class Chemical:
 	def __init__(self, ctype):
@@ -183,6 +224,8 @@ class ChemicalSource:
 		screen.blit(self.font.render(str(round(self.chance,2)), True, self.color), [self.x, self.y - 20])
 		pygame.draw.rect(screen,colours[self.ctype], (self.x, self.y, 20, 20),0)
 
+		
+# *************************\  FUZZY LOGIC & CONTROLLER /*************************
 class Controller:
 	def __init__(self, batchReactors, sources, pipes):
 		self.batchReactors 	= batchReactors.copy()
@@ -194,10 +237,12 @@ class Controller:
 		self.controlMatrix  = numpy.zeros((self.nBatchReacts * 8 * 3, self.nSources))
 		self.output			= numpy.zeros((1, self.nSources))
 		
-		self.font_size		= 28
+		self.font_size		= 14
 		self.font			= pygame.font.SysFont("georgia", self.font_size)
 		self.color			= BLACK
-		
+		self.controlName	= "None"
+	
+	# for inputing rules into the control matrix
 	def updateControls(self, ruleComps):
 		for c in ruleComps:
 			# format for c: [batch Reactor n., chemical n., fuzzy value n., source n., value]
@@ -212,6 +257,7 @@ class Controller:
 			self.controlMatrix[24*c[0] + 3*c[1] + c[2], c[3]] = c[4]
 		return True
 	
+	#Get the fuzzify values 
 	def getInputs(self):
 		i = 0
 		for batchRect in self.batchReactors:
@@ -221,7 +267,8 @@ class Controller:
 						self.input[0,i] = val
 						i += 1
 		return True
-		
+	
+	#Uses fuzzy values 
 	def controlSource(self):
 		self.getInputs()
 		numpy.matmul(self.input, self.controlMatrix, self.output)
@@ -250,9 +297,122 @@ class Controller:
 			if (batch.name == "A"):
 				output_rate = numpy.append(output_rate,[gen])
 				output_rate = output_rate[1:]
-				screen.blit(self.font.render("Test", True, self.color), [900, 500])
+		
+def setupRuleSet1(controller):
+	controller.controlName = "Rule Set 1"
+	controller.controlMatrix.fill(0)
+	#	batchConverters and sourcelayout is as follows:
+	#	batchConverters = [ A = 0	source = [	B0 = 0 chemical = 0
+	#						B = 1				C0 = 1 chemical = 0
+	#						C = 2				C1 = 2 chemical = 1
+	#						D = 3				C2 = 3 chemical = 2
+	#					  ]						D0 = 4 chemical = 0
+	#											D1 = 5 chemical = 1
+	#										 ]
 
 	
+	controller.updateControls([  
+	#							[BaR, Chm, Fuz, Src, Val], 
+								[  1,   0,   0,   0,   2  ],
+								
+								[  2,   0,   0,   1,   1  ],
+								
+								[  2,   1,   0,   2,   1  ],
+								
+								[  2,   2,   0,   3,   1  ],
+								
+								[  3,   0,   0,   4,   1  ],
+								
+								[  3,   1,   0,   5,   1  ],
+							  ])
+
+def setupRuleSet2(controller):
+	controller.controlName = "Rule Set 2"
+	controller.controlMatrix.fill(0)
+	#	batchConverters and sourcelayout is as follows:
+	#	batchConverters = [ A = 0	source = [	B0 = 0 chemical = 0
+	#						B = 1				C0 = 1 chemical = 0
+	#						C = 2				C1 = 2 chemical = 1
+	#						D = 3				C2 = 3 chemical = 2
+	#					  ]						D0 = 4 chemical = 0
+	#											D1 = 5 chemical = 1
+	#										 ]
+
+	
+	controller.updateControls([  
+	#							[BaR, Chm, Fuz, Src, Val], 
+								[  1,   0,   0,   0,   2  ],
+								[  1,   0,   1,   0,   1  ],
+								
+								[  2,   0,   0,   1,   1  ],
+								[  2,   0,   1,   1,   0.75],
+								[  0,   6,   2,   1,   -1 ],
+								
+								[  2,   1,   0,   2,   1  ],
+								[  2,   1,   1,   2,   0.75],
+								[  0,   6,   2,   2,   -1 ],
+								
+								[  2,   2,   0,   3,   1  ],
+								[  2,   2,   1,   3,   0.75],
+								[  0,   6,   2,   3,   -1 ],
+								
+								[  3,   0,   0,   4,   1  ],
+								[  3,   0,   1,   4,   0.75],
+								[  1,   7,   2,   4,   -1  ],
+								
+								[  3,   1,   0,   5,   1   ],
+								[  3,   1,   1,   5,   0.75],
+								[  1,   7,   2,   5,   -1  ],
+							  ])
+							  
+def setupRuleSet3(controller):
+	controller.controlName = "Rule Set 3"
+	controller.controlMatrix.fill(0)
+	#	batchConverters and sourcelayout is as follows:
+	#	batchConverters = [ A = 0	source = [	B0 = 0 chemical = 0
+	#						B = 1				C0 = 1 chemical = 0
+	#						C = 2				C1 = 2 chemical = 1
+	#						D = 3				C2 = 3 chemical = 2
+	#					  ]						D0 = 4 chemical = 0
+	#											D1 = 5 chemical = 1
+	#										 ]
+
+	
+	controller.updateControls([  
+	#							[BaR, Chm, Fuz, Src, Val], 
+								[  1,   0,   0,   0,   2  ],
+								[  1,   0,   1,   0,   -0.25],
+								[  1,   0,   2,   0,   -2  ],
+								[  1,   7,   1,   0,   2   ],
+								[  1,   7,   2,   0,   2   ],
+																
+								[  2,   0,   0,   1,   1   ],
+								[  2,   0,   1,   1,   0.75],
+								[  0,   6,   2,   1,   -1  ],
+								
+								[  2,   1,   0,   2,   1   ],
+								[  2,   1,   1,   2,   0.75],
+								[  0,   6,   2,   2,   -1  ],
+								
+								[  2,   2,   0,   3,   1   ],
+								[  2,   2,   1,   3,   0.75],
+								[  0,   6,   2,   3,   -1  ],
+								
+								[  3,   0,   0,   4,   1   ],
+								[  3,   0,   2,   4,   -2   ],
+								[  1,   7,   1,   4,   -0.25],
+								[  1,   7,   2,   4,   -2  ],
+								[  1,   0,   1,   4,   2   ],
+								[  1,   0,   2,   4,   2   ],
+								
+								[  3,   1,   0,   5,   1    ],
+								[  3,   1,   2,   5,   -2   ],
+								[  1,   7,   1,   5,   -0.25],
+								[  1,   7,   2,   5,   -2   ],
+								[  1,   0,   1,   5,   2    ],
+								[  1,   0,   2,   5,   2    ],
+							  ])
+
 # Initialise pygame module
 pygame.init()
 # Create game window
@@ -261,6 +421,13 @@ screen = pygame.display.set_mode(size)
 pygame.display.set_caption("Fuzzy Logic")
 # Initialise pygame clock
 clock = pygame.time.Clock()
+
+# Add controller buttons
+buttons = []
+buttons.append(Button("Rule set 1", (60, 50 ), setupRuleSet1))
+buttons.append(Button("Rule set 2", (60, 90 ), setupRuleSet2))
+buttons.append(Button("Rule set 3", (60, 130), setupRuleSet3))
+
 
 # Build the chemical process plant
 pipes = []
@@ -291,38 +458,9 @@ sources.append(ChemicalSource(400,40,0,[pipes[len(pipes)-1]],20))
 Pipe(880,40,-200,20,batchConverters[len(batchConverters)-1])
 sources.append(ChemicalSource(880,40,1,[pipes[len(pipes)-1]],40))
 
-#	batchConverters and sourcelayout is as follows:
-#	batchConverters = [ A = 0	source = [	B0 = 0 chemical = 0
-#						B = 1				C0 = 1 chemical = 0
-#						C = 2				C1 = 2 chemical = 1
-#						D = 3				C2 = 3 chemical = 2
-#					  ]						D0 = 4 chemical = 0
-#											D1 = 5 chemical = 1
-#										 ]
 
 controller = Controller(batchConverters, sources, pipes)
-controller.updateControls([  
-#							[BaR, Chm, Fuz, Src, Val], 
-							[  1,   0,   0,   0,   2  ],
-							[  1,   0,   1,   0,   1  ],
-							[  2,   0,   0,   1,   1  ],
-							[  2,   0,   1,   1,   0.75],
-							[  0,   6,   2,   1,   -1 ],
-							[  2,   1,   0,   2,   1  ],
-							[  2,   1,   1,   2,   0.75],
-							[  0,   6,   2,   2,   -1 ],
-							[  2,   2,   0,   3,   1  ],
-							[  2,   2,   1,   3,   0.75],
-							[  0,   6,   2,   3,   -1 ],
-							[  3,   0,   0,   4,   1  ],
-							[  3,   0,   1,   4,   0.75],
-							[  1,   7,   2,   4,   -1  ],
-							[  3,   1,   0,   5,   1   ],
-							[  3,   1,   1,   5,   0.75],
-							[  1,   7,   2,   5,   -1  ],
-						  ])
 
-controller.step()
 
 # Begin game loop
 exit_flag = 0
@@ -343,6 +481,13 @@ while (exit_flag == 0):
 			if event.key == pygame.K_SPACE:
 				if not auto:
 					controller.step()
+					
+		if event.type == pygame.MOUSEBUTTONUP:
+			mousebuttondown(buttons, controller)
+			
+		if event.type == pygame.QUIT:
+			exit_flag = 1
+				
 						
 	# Automatically cycle through process every 0.5s
 	if auto:
@@ -367,8 +512,10 @@ while (exit_flag == 0):
 		pipe.render()
 	for source in sources:
 		source.render()
-	
-
+	for button in buttons:
+		button.draw()
+	screen.blit(controller.font.render("Current Rule Set: " + controller.controlName, 
+									 True, controller.color), [10, 10])
 
 	# Update screen with new contents
 	pygame.display.flip()
