@@ -6,6 +6,7 @@ import random
 BLACK = (0, 0, 0)
 GRAY = (150, 150, 150)
 LIGHTGRAY = (200, 200, 200)
+MEDGRAY = (175, 175, 175)
 WHITE = (255, 255, 255)
 RED = (150, 0, 0)
 GREEN = (100, 200, 100)
@@ -18,22 +19,24 @@ output_rate = numpy.zeros(100,int)
 
 # *************************\ NONE FUZZY LOGIC RELATED FUNCTIONS /*************************
 class Button():
-    def __init__(self, txt, location, action, size=(80, 30), font_name="georgia", font_size=16):
+    def __init__(self, txt, location, action, input, size=(80, 30), font_name="georgia", font_size=16):
         self.color 	= WHITE  # the static (normal) color
         self.bg 	= WHITE  # actual background color, can change on mouseover
         self.fg 	= BLACK  # text color
         self.size 	= size
-
+		
         self.font = pygame.font.SysFont(font_name, font_size)
         self.txt = txt
         self.txt_surf = self.font.render(self.txt, 1, self.fg)
         self.txt_rect = self.txt_surf.get_rect(center=[s//2 for s in self.size])
-
+		
         self.surface = pygame.surface.Surface(size)
         self.rect = self.surface.get_rect(center=location)
-
+		
         self.call_back_ = action
-
+        self.input = input
+		
+		
     def draw(self):
         self.mouseover()
 
@@ -47,14 +50,14 @@ class Button():
         if self.rect.collidepoint(pos):
             self.bg = GRAY  # mouseover color
 
-    def call_back(self, controller):
-        self.call_back_(controller)
+    def call_back(self):
+        self.call_back_(self.input)
 		
 def mousebuttondown(buttons, controller):
 	pos = pygame.mouse.get_pos()
 	for button in buttons:
 		if button.rect.collidepoint(pos):
-			button.call_back(controller)
+			button.call_back()
 
 
 # Chemical class
@@ -100,6 +103,13 @@ class Pipe:
 				new_x += 20*int(self.length/abs(self.length))
 			else:
 				new_y += 20*int(self.width/abs(self.width))
+	def clearPipe(self):
+		index = len(self.contents) - 1                       
+		while (index > -1):
+			self.contents[index] = 0
+			index-=1
+			
+			
 # Batch Converter class, track how many chemicals are inside and generate
 # new chemicals dependant on the prerequisites
 class BatchConverter:
@@ -111,10 +121,12 @@ class BatchConverter:
 		self.pipes 		= pipes
 		self.basechance = 25
 		self.thres 		= 100
-		self.total 		= 0
+		self.total 		= 0.0
 		self.chance		= chance
+		self.reactRate  = 1.0
 		self.chemicals 	= numpy.zeros(8,int)
 		self.chemifuzzy = [[100,0,0]]*8
+		self.chemSum	= 0	
 		
 		self.name 		= name
 		self.font_size 	= 28
@@ -135,8 +147,8 @@ class BatchConverter:
 		for pipe in self.pipes:
 			if (pipe.contents[0] == 0):
 				self.total += self.chance
-				if (self.total > self.thres):
-					self.total -= self.thres
+				if (self.total >= self.thres):
+					self.total %= (self.thres + 1)
 					#Actually outputted a chemical
 					self.chemicals = temp
 					pipe.contents[0] = Chemical(self.ctype)
@@ -144,15 +156,17 @@ class BatchConverter:
 		return 0
 	def render(self):
 		pygame.draw.rect(screen, GRAY, (self.x, self.y, 60,60),0)
+		liqLevel = 55*(self.chemSum/100)
+		pygame.draw.rect(screen, BLUE, (self.x+45, self.y+55-liqLevel, 10, liqLevel),0)
 		self.font_size = 28
 		screen.blit(self.font.render(self.name, True, self.color), [self.x+20, self.y+12])
 		screen.blit(self.font.render(str(self.chance), True, self.color), [self.x-20, self.y-12])
 		screen.blit(self.font.render(str(numpy.count_nonzero(output_rate)), True, self.color), [900, 500])
 	def adapt(self):
-		chemsum = 0
+		self.chemSum = 0
 		for chem in self.chemicals:
-			chemsum += chem
-		self.chance = self.basechance + (min(chemsum,75))
+			self.chemSum += chem
+		self.chance = self.basechance + (min(self.chemSum*self.reactRate,75))
 	def report(self, draw_x):
 		x = draw_x
 		y = 550
@@ -193,10 +207,12 @@ class BatchConverter:
 			
 
 class ChemicalSource:
-	def __init__(self, x, y, ctype, pipes, chance):
+	def __init__(self, x, y, ctype, pipes, chance, name=""):
 		self.font_size 	= 12
 		self.font 		= pygame.font.SysFont("georgia", self.font_size)
 		self.font.set_bold(1)
+		
+		self.name		= name 
 		
 		self.x 			= x
 		self.y 			= y
@@ -218,10 +234,12 @@ class ChemicalSource:
 			if (pipe.contents[0] == 0):
 				self.total += self.chance*random.uniform(0.8, 1.2)
 				if (self.total > self.thres):
-					self.total -= self.thres
+					self.total %= (self.thres + 1)
 					pipe.contents[0] = Chemical(self.ctype)
+					
 	def render(self):
-		screen.blit(self.font.render(str(round(self.chance,2)), True, self.color), [self.x, self.y - 20])
+		screen.blit(self.font.render(self.name + "=" + str(round(self.chance,2)),
+					True, self.color), [self.x, self.y - 20])
 		pygame.draw.rect(screen,colours[self.ctype], (self.x, self.y, 20, 20),0)
 
 		
@@ -236,6 +254,8 @@ class Controller:
 		self.input			= numpy.zeros((1, self.nBatchReacts * 8 * 3))
 		self.controlMatrix  = numpy.zeros((self.nBatchReacts * 8 * 3, self.nSources))
 		self.output			= numpy.zeros((1, self.nSources))
+		
+		self.steps 			= 0
 		
 		self.font_size		= 14
 		self.font			= pygame.font.SysFont("georgia", self.font_size)
@@ -284,6 +304,7 @@ class Controller:
 		return True
 		
 	def step(self):
+		self.steps += 1
 		global output_rate
 		
 		for pipe in self.pipes:
@@ -297,12 +318,24 @@ class Controller:
 			if (batch.name == "A"):
 				output_rate = numpy.append(output_rate,[gen])
 				output_rate = output_rate[1:]
-		
+	
+	def resetSimulation(self):
+		self.steps = 0
+		for pipe in self.pipes:
+			pipe.clearPipe()
+		for source in self.sources:
+			source.thres = 100
+			source.total = 0			
+		for batch in self.batchReactors:
+			batch.thres = 100
+			batch.total = 0
+			batch.chemicals.fill(0)
+	
 def setupRuleSet1(controller):
 	controller.controlName = "Rule Set 1"
 	controller.controlMatrix.fill(0)
-	#	batchConverters and sourcelayout is as follows:
-	#	batchConverters = [ A = 0	source = [	B0 = 0 chemical = 0
+	#	batchReactors and sourcelayout is as follows:
+	#	batchReactors = [ A = 0	source = [	B0 = 0 chemical = 0
 	#						B = 1				C0 = 1 chemical = 0
 	#						C = 2				C1 = 2 chemical = 1
 	#						D = 3				C2 = 3 chemical = 2
@@ -329,8 +362,8 @@ def setupRuleSet1(controller):
 def setupRuleSet2(controller):
 	controller.controlName = "Rule Set 2"
 	controller.controlMatrix.fill(0)
-	#	batchConverters and sourcelayout is as follows:
-	#	batchConverters = [ A = 0	source = [	B0 = 0 chemical = 0
+	#	batchReactors and sourcelayout is as follows:
+	#	batchReactors = [ A = 0	source = [	B0 = 0 chemical = 0
 	#						B = 1				C0 = 1 chemical = 0
 	#						C = 2				C1 = 2 chemical = 1
 	#						D = 3				C2 = 3 chemical = 2
@@ -368,8 +401,8 @@ def setupRuleSet2(controller):
 def setupRuleSet3(controller):
 	controller.controlName = "Rule Set 3"
 	controller.controlMatrix.fill(0)
-	#	batchConverters and sourcelayout is as follows:
-	#	batchConverters = [ A = 0	source = [	B0 = 0 chemical = 0
+	#	batchReactors and sourcelayout is as follows:
+	#	batchReactors = [ A = 0	source = [	B0 = 0 chemical = 0
 	#						B = 1				C0 = 1 chemical = 0
 	#						C = 2				C1 = 2 chemical = 1
 	#						D = 3				C2 = 3 chemical = 2
@@ -381,10 +414,10 @@ def setupRuleSet3(controller):
 	controller.updateControls([  
 	#							[BaR, Chm, Fuz, Src, Val], 
 								[  1,   0,   0,   0,   2  ],
-								[  1,   0,   1,   0,   -0.25],
+								[  1,   0,   1,   0,   -0.5],
 								[  1,   0,   2,   0,   -2  ],
-								[  1,   7,   1,   0,   2   ],
-								[  1,   7,   2,   0,   2   ],
+								[  1,   7,   1,   0,   1   ],
+								[  1,   7,   2,   0,   1.5 ],
 																
 								[  2,   0,   0,   1,   1   ],
 								[  2,   0,   1,   1,   0.75],
@@ -400,19 +433,37 @@ def setupRuleSet3(controller):
 								
 								[  3,   0,   0,   4,   1   ],
 								[  3,   0,   2,   4,   -2   ],
-								[  1,   7,   1,   4,   -0.25],
+								[  1,   7,   1,   4,   -0.5],
 								[  1,   7,   2,   4,   -2  ],
-								[  1,   0,   1,   4,   2   ],
-								[  1,   0,   2,   4,   2   ],
+								[  1,   0,   1,   4,   1   ],
+								[  1,   0,   2,   4,   1.5 ],
 								
 								[  3,   1,   0,   5,   1    ],
 								[  3,   1,   2,   5,   -2   ],
-								[  1,   7,   1,   5,   -0.25],
+								[  1,   7,   1,   5,   -0.5],
 								[  1,   7,   2,   5,   -2   ],
-								[  1,   0,   1,   5,   2    ],
-								[  1,   0,   2,   5,   2    ],
+								[  1,   0,   1,   5,   1    ],
+								[  1,   0,   2,   5,   1.5  ],
 							  ])
+def increaseThres(source):
+	if (source.thres < 299):
+		source.thres += 10
+	
+def decreaseThres(source):
+	if (source.thres > 1):
+		source.thres -= 10
 
+def increaseRR(batchReactor):
+	if (batchReactor.reactRate < 2.99):
+		batchReactor.reactRate += 0.1
+
+def decreaseRR(batchReactor):
+	if (batchReactor.reactRate > 0.01):
+		batchReactor.reactRate -= 0.1
+
+def resetSimulation(controller):
+	controller.resetSimulation()
+		
 # Initialise pygame module
 pygame.init()
 # Create game window
@@ -422,45 +473,62 @@ pygame.display.set_caption("Fuzzy Logic")
 # Initialise pygame clock
 clock = pygame.time.Clock()
 
-# Add controller buttons
-buttons = []
-buttons.append(Button("Rule set 1", (60, 50 ), setupRuleSet1))
-buttons.append(Button("Rule set 2", (60, 90 ), setupRuleSet2))
-buttons.append(Button("Rule set 3", (60, 130), setupRuleSet3))
-
 
 # Build the chemical process plant
 pipes = []
-batchConverters = []
+batchReactors = []
 sources = []
 
 link_0 = Pipe(840,420,160,20,None)
-batchConverters.append(BatchConverter(780,400,4,[0,0,0,0,0,1,1,0],[link_0],"A",70))
-link_1 = Pipe(680,420,100,20,batchConverters[len(batchConverters)-1])
-link_2 = Pipe(800,260,20,140,batchConverters[len(batchConverters)-1])
+batchReactors.append(BatchConverter(780,400,4,[0,0,0,0,0,1,1,0],[link_0],"A",70))
+link_1 = Pipe(680,420,100,20,batchReactors[len(batchReactors)-1])
+link_2 = Pipe(800,260,20,140,batchReactors[len(batchReactors)-1])
 
-batchConverters.append(BatchConverter(620,400,5,[1,0,0,0,0,0,0,1],[link_1],"B",70))
-Pipe(420,420,200,20,batchConverters[len(batchConverters)-1])
-sources.append(ChemicalSource(400,420,0,[pipes[len(pipes)-1]],20))
-link_3 = Pipe(640,80,20,320,batchConverters[len(batchConverters)-1])
+batchReactors.append(BatchConverter(620,400,5,[1,0,0,0,0,0,0,1],[link_1],"B",70))
+Pipe(420,420,200,20,batchReactors[len(batchReactors)-1])
+sources.append(ChemicalSource(400,420,0,[pipes[len(pipes)-1]],20, "B1"))
+link_3 = Pipe(640,80,20,320,batchReactors[len(batchReactors)-1])
 
-batchConverters.append(BatchConverter(780,200,6,[1,1,1,0,0,0,0,0],[link_2],"C",70))
-Pipe(800,100,20,100,batchConverters[len(batchConverters)-1])
-sources.append(ChemicalSource(800,80,0,[pipes[len(pipes)-1]],20))
-Pipe(500,220,280,20,batchConverters[len(batchConverters)-1])
-sources.append(ChemicalSource(480,220,1,[pipes[len(pipes)-1]],40))
-Pipe(940,220,-100,20,batchConverters[len(batchConverters)-1])
-sources.append(ChemicalSource(940,220,2,[pipes[len(pipes)-1]],20))
+batchReactors.append(BatchConverter(780,200,6,[1,1,1,0,0,0,0,0],[link_2],"C",70))
+Pipe(800,100,20,100,batchReactors[len(batchReactors)-1])
+sources.append(ChemicalSource(800,80,0,[pipes[len(pipes)-1]],20,  "C1"))
+Pipe(500,220,280,20,batchReactors[len(batchReactors)-1])
+sources.append(ChemicalSource(480,220,1,[pipes[len(pipes)-1]],40, "C2"))
+Pipe(940,220,-100,20,batchReactors[len(batchReactors)-1])
+sources.append(ChemicalSource(940,220,2,[pipes[len(pipes)-1]],20, "C3"))
 
-batchConverters.append(BatchConverter(620,20,7,[1,1,0,0,0,0,0,0],[link_3],"D",70))
-Pipe(420,40,200,20,batchConverters[len(batchConverters)-1])
-sources.append(ChemicalSource(400,40,0,[pipes[len(pipes)-1]],20))
-Pipe(880,40,-200,20,batchConverters[len(batchConverters)-1])
-sources.append(ChemicalSource(880,40,1,[pipes[len(pipes)-1]],40))
+batchReactors.append(BatchConverter(620,20,7,[1,1,0,0,0,0,0,0],[link_3],"D",70))
+Pipe(420,40,200,20,batchReactors[len(batchReactors)-1])
+sources.append(ChemicalSource(400,40,0,[pipes[len(pipes)-1]],20, "D1"))
+Pipe(880,40,-200,20,batchReactors[len(batchReactors)-1])
+sources.append(ChemicalSource(880,40,1,[pipes[len(pipes)-1]],40, "D2"))
+
+controller = Controller(batchReactors, sources, pipes)
+
+# Add controller buttons
+buttons = []
+buttons.append(Button("Rule set 1", ( 90, 50), setupRuleSet1, controller))
+buttons.append(Button("Rule set 2", (190, 50), setupRuleSet2, controller))
+buttons.append(Button("Rule set 3", (290, 50), setupRuleSet3, controller))
+
+y = 150
+for source in sources:
+	buttons.append(Button("+", (110, y), increaseThres, source, (20, 20)))
+	buttons.append(Button("-", (150, y), decreaseThres, source, (20, 20)))
+	y += 25
+
+y = 150
+x = 140+(1.6*size[0]/10)
+
+for reactors in batchReactors:
+	buttons.append(Button("+", (x,    y), increaseRR, reactors, (20, 20)))
+	buttons.append(Button("-", (x+40, y), decreaseRR, reactors, (20, 20)))
+	y += 40
 
 
-controller = Controller(batchConverters, sources, pipes)
-
+resetButton = Button("Reset Simulation", (500, 550), resetSimulation, controller, (130, 30))
+resetButton.color = RED
+buttons.append(resetButton)
 
 # Begin game loop
 exit_flag = 0
@@ -477,6 +545,7 @@ while (exit_flag == 0):
 			# User hit the S key -> START/STOP Auto flow
 			if event.key == pygame.K_s:
 				auto = not auto
+				
 			# User hit SPACE -> Force flow
 			if event.key == pygame.K_SPACE:
 				if not auto:
@@ -501,10 +570,42 @@ while (exit_flag == 0):
 	screen.fill(WHITE)
 	# Draw UI
 	pygame.draw.rect(screen, LIGHTGRAY, (0, 0, 4*size[0]/10, size[1]), 0)
+	pygame.draw.rect(screen, MEDGRAY, (25, 100, 1.6*size[0]/10, 3.25*size[1]/10), 0)
+	pygame.draw.rect(screen, MEDGRAY, (50+(1.6*size[0]/10), 100, 1.6*size[0]/10, 3.25*size[1]/10), 0)
+	
+	screen.blit(controller.font.render("Source Threshold", True, 
+				controller.color), [25+(0.25*size[0]/10), 110])
+	screen.blit(controller.font.render("Reactor Threshold", True, 
+				controller.color), [50+(1.825*size[0]/10), 110])
+	
+	y = 140
+	for source in sources:
+		screen.blit(controller.font.render(source.name + ": " + str(source.thres), True, 
+					controller.color), [30, y])
+		y += 25
+		
+	y = 140
+	x = 55 + (1.6*size[0]/10)
+	for reactors in batchReactors:
+		screen.blit(controller.font.render(reactors.name + ": " + str(round(reactors.reactRate, 3)), 
+					True, controller.color), [x, y])
+		y += 40
+	
+	screen.blit(controller.font.render("Current Rule Set: " + controller.controlName, 
+				True, controller.color), [120, 10])
+	screen.blit(controller.font.render("Steps: " + str(controller.steps), True, 
+				controller.color), [920, 5])
+	
 
+	
+	
+	
+	for button in buttons:
+		button.draw()
+	
 	#Draw simulation elements
 	draw_x = 50
-	for bc in batchConverters:
+	for bc in batchReactors:
 		bc.render()
 		bc.report(draw_x)
 		draw_x += 80
@@ -512,11 +613,8 @@ while (exit_flag == 0):
 		pipe.render()
 	for source in sources:
 		source.render()
-	for button in buttons:
-		button.draw()
-	screen.blit(controller.font.render("Current Rule Set: " + controller.controlName, 
-									 True, controller.color), [10, 10])
 
+	
 	# Update screen with new contents
 	pygame.display.flip()
 	# Limit fps
