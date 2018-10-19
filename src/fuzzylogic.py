@@ -1,3 +1,4 @@
+import sys
 import pygame
 import numpy
 import random
@@ -251,9 +252,13 @@ class Controller:
 		self.sources		= sources.copy()
 		self.pipes			= pipes.copy()
 		self.nSources		= len(self.sources)
-		self.input			= numpy.zeros((1, self.nBatchReacts * 8 * 3))
-		self.controlMatrix  = numpy.zeros((self.nBatchReacts * 8 * 3, self.nSources))
+		self.input			= numpy.zeros((1, 3+(self.nBatchReacts * 8 * 3)))
+		self.controlMatrix  = numpy.zeros((3+(self.nBatchReacts * 8 * 3), self.nSources))
 		self.output			= numpy.zeros((1, self.nSources))
+		
+		self.requiredOut	= 0
+		self.reqOutifuzzy 	= []
+		self.updateRequiredOut(50)
 		
 		self.steps 			= 0
 		
@@ -266,16 +271,54 @@ class Controller:
 	def updateControls(self, ruleComps):
 		for c in ruleComps:
 			# format for c: [batch Reactor n., chemical n., fuzzy value n., source n., value]
-			if (c[0] < 0 or c[0] > self.nBatchReacts):
-				return False
-			if (c[1] < 0 or c[1] > 8):
-				return False
-			if (c[2] < 0 or c[2] > 3):
-				return False
-			if (c[3] < 0 or c[3] > self.nSources):
-				return False
-			self.controlMatrix[24*c[0] + 3*c[1] + c[2], c[3]] = c[4]
+			
+			if (c[0] == self.nBatchReacts):
+				if (c[1] != 0):
+					print("Warning: output only has one chemical\n")
+					return False
+				if (c[2] < 0 or c[2] > 3):
+					print("Warning: wrong value for fuzzy catagory\n")
+					return False
+				if (c[3] < 0 or c[3] > self.nSources):
+					print("Warning: source number out of bounds\n")
+					return False
+				self.controlMatrix[24*c[0] + 3*c[1] + c[2], c[3]] = c[4]
+			else:
+				if (c[0] < 0 or c[0] > self.nBatchReacts):
+					print("Warning: reactor number out of bounds\n")
+					return False
+				if (c[1] < 0 or c[1] > 8):
+					print("Warning: Chemical number out of bounds\n")
+					return False
+				if (c[2] < 0 or c[2] > 3):
+					print("Warning: fuzzy catagory out of bounds\n")
+					return False
+				if (c[3] < 0 or c[3] > self.nSources):
+					print("Warning: source number out of bounds\n")
+					return False
+				self.controlMatrix[24*c[0] + 3*c[1] + c[2], c[3]] = c[4]
 		return True
+	
+	def updateRequiredOut(self, newValue):
+		self.requiredOut = newValue
+		
+		if (self.requiredOut < 20):
+			low = 100 - self.requiredOut*5
+			med = 100 - low
+			high = 0
+		elif (self.requiredOut < 40):
+			low = 0
+			med = 100
+			high = 0
+		elif (self.requiredOut < 60):
+			low = 0
+			med = 300 - self.requiredOut*5
+			high = 100 - med
+		else:
+			low = 0
+			med = 0
+			high = 100
+		self.reqOutifuzzy = [low,med,high]
 	
 	#Get the fuzzify values 
 	def getInputs(self):
@@ -286,6 +329,10 @@ class Controller:
 					for val in fuzzy:
 						self.input[0,i] = val
 						i += 1
+		for val in self.reqOutifuzzy:
+			self.input[0,i] = val
+			i += 1
+		
 		return True
 	
 	#Uses fuzzy values 
@@ -300,6 +347,7 @@ class Controller:
 			
 			source.chance = self.output[0, i]%101
 			i += 1
+		
 			
 		return True
 		
@@ -330,7 +378,41 @@ class Controller:
 			batch.thres = 100
 			batch.total = 0
 			batch.chemicals.fill(0)
+			
+class Logger:
+	def __init__(self,  name, controller):
+		self.controller		= controller
+		self.name			= name
+		self.file			= open(name + ".csv","w+")
+		
+		self.file.write("steps,")
+		for batchReactor in self.controller.batchReactors:
+			for i in range(0, 8):
+				self.file.write(batchReactor.name + "chem%d," % i)
+			self.file.write(batchReactor.name + "reactRate,")
+		for source in self.controller.sources:
+			self.file.write(source.name + "thres,")
+			self.file.write(source.name + "chance,")
+		
+		self.file.write("zeros\n")
 	
+	def writeToFile(self):
+		self.file.write("%d," % controller.steps)
+		
+		for batchReactor in self.controller.batchReactors:
+			for i in range(0, 8):
+				self.file.write("%d," % batchReactor.chemicals[i])
+			self.file.write("%d," % batchReactor.chance)
+		for source in self.controller.sources:
+			self.file.write("%d," % source.thres)
+			self.file.write("%d," % source.chance)
+		
+		self.file.write("0\n")
+		
+	def closeFile(self):
+		self.file.close()
+		
+		
 def setupRuleSet1(controller):
 	controller.controlName = "Rule Set 1"
 	controller.controlMatrix.fill(0)
@@ -444,7 +526,10 @@ def setupRuleSet3(controller):
 								[  1,   7,   2,   5,   -2   ],
 								[  1,   0,   1,   5,   1    ],
 								[  1,   0,   2,   5,   1.5  ],
-							  ])
+							  ])					  
+	
+	
+	
 def increaseThres(source):
 	if (source.thres < 299):
 		source.thres += 10
@@ -463,6 +548,23 @@ def decreaseRR(batchReactor):
 
 def resetSimulation(controller):
 	controller.resetSimulation()
+
+def increateDemand(controller):
+	newVal = controller.requiredOut + 1
+	if (newVal < 76): 
+		controller.updateRequiredOut(newVal)
+
+def decreateDemand(controller):
+	newVal = controller.requiredOut - 1
+	if (newVal > -1): 
+		controller.updateRequiredOut(newVal)
+	
+# Check inputs to see if log should be enabled
+enableLog = False
+logName	  = ""
+if len(sys.argv) == 2:
+	enableLog = True
+	logName = sys.argv[1]
 		
 # Initialise pygame module
 pygame.init()
@@ -504,6 +606,29 @@ Pipe(880,40,-200,20,batchReactors[len(batchReactors)-1])
 sources.append(ChemicalSource(880,40,1,[pipes[len(pipes)-1]],40, "D2"))
 
 controller = Controller(batchReactors, sources, pipes)
+if enableLog:
+	logger = Logger(logName, controller)
+
+controller.updateControls([  
+#							[BaR, Chm, Fuz, Src, Val], 
+							[  4,   0,   1,   0,   0.5  ],
+							[  4,   0,   2,   0,   0.75 ],
+							
+							[  4,   0,   1,   1,   0.5  ],
+							[  4,   0,   2,   1,   0.75 ],
+							
+							[  4,   0,   1,   2,   0.5  ],
+							[  4,   0,   2,   2,   1    ],
+							
+							[  4,   0,   1,   3,   0.5  ],
+							[  4,   0,   2,   3,   1    ],
+							
+							[  4,   0,   1,   4,   0.5  ],
+							[  4,   0,   2,   4,   1    ],
+							
+							[  4,   0,   1,   5,   0.5  ],
+							[  4,   0,   2,   5,   1    ],
+						  ])	
 
 # Add controller buttons
 buttons = []
@@ -511,10 +636,14 @@ buttons.append(Button("Rule set 1", ( 90, 50), setupRuleSet1, controller))
 buttons.append(Button("Rule set 2", (190, 50), setupRuleSet2, controller))
 buttons.append(Button("Rule set 3", (290, 50), setupRuleSet3, controller))
 
+y = 126+(3.25*size[1]/10)
+buttons.append(Button("+", (120, y), increateDemand, controller, (20, 20)))
+buttons.append(Button("-", (160, y), decreateDemand, controller, (20, 20)))
+
 y = 150
 for source in sources:
-	buttons.append(Button("+", (110, y), increaseThres, source, (20, 20)))
-	buttons.append(Button("-", (150, y), decreaseThres, source, (20, 20)))
+	buttons.append(Button("+", (120, y), increaseThres, source, (20, 20)))
+	buttons.append(Button("-", (160, y), decreaseThres, source, (20, 20)))
 	y += 25
 
 y = 150
@@ -550,6 +679,8 @@ while (exit_flag == 0):
 			if event.key == pygame.K_SPACE:
 				if not auto:
 					controller.step()
+					if enableLog:
+						logger.writeToFile()
 					
 		if event.type == pygame.MOUSEBUTTONUP:
 			mousebuttondown(buttons, controller)
@@ -563,7 +694,8 @@ while (exit_flag == 0):
 		new_time = pygame.time.get_ticks()
 		if (new_time - last_time > 100):
 			controller.step()
-				
+			if enableLog:
+				logger.writeToFile()
 			last_time = new_time
 			
 	# Wash with clean background
@@ -572,11 +704,15 @@ while (exit_flag == 0):
 	pygame.draw.rect(screen, LIGHTGRAY, (0, 0, 4*size[0]/10, size[1]), 0)
 	pygame.draw.rect(screen, MEDGRAY, (25, 100, 1.6*size[0]/10, 3.25*size[1]/10), 0)
 	pygame.draw.rect(screen, MEDGRAY, (50+(1.6*size[0]/10), 100, 1.6*size[0]/10, 3.25*size[1]/10), 0)
+	pygame.draw.rect(screen, MEDGRAY, (25, 110+(3.25*size[1]/10), 1.6*size[0]/10, 30), 0)
+	
 	
 	screen.blit(controller.font.render("Source Threshold", True, 
 				controller.color), [25+(0.25*size[0]/10), 110])
 	screen.blit(controller.font.render("Reactor Threshold", True, 
 				controller.color), [50+(1.825*size[0]/10), 110])
+	screen.blit(controller.font.render("Demand: " + str(controller.requiredOut), True, 
+				controller.color), [30, 115+(3.25*size[1]/10)])
 	
 	y = 140
 	for source in sources:
@@ -595,9 +731,6 @@ while (exit_flag == 0):
 				True, controller.color), [120, 10])
 	screen.blit(controller.font.render("Steps: " + str(controller.steps), True, 
 				controller.color), [920, 5])
-	
-
-	
 	
 	
 	for button in buttons:
@@ -621,6 +754,8 @@ while (exit_flag == 0):
 	# clock.tick(10)
 
 # We're out of the game loop so shut things down
+if enableLog:
+	logger.closeFile()
 pygame.quit()
 #quit()
 
