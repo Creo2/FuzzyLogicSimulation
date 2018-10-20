@@ -6,8 +6,6 @@ from controller import Controller, get_output_rate
 from colour import get_colors,Color
 from button import Button, mousebuttondown
 from components import BatchConverter,Pipe, ChemicalSource
-# Defining my colours
-
 
 colours = get_colors()
 

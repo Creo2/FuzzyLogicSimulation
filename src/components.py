@@ -13,7 +13,7 @@ class Chemical:
 		self.ctype = ctype
 
 	def render(self,x,y,screen):
-		pygame.draw.circle(screen, self.ctype, (x,y), 5, 0)
+		pygame.draw.circle(screen, colours[self.ctype].value, (x,y), 5, 0)
 # Pipe class - contain the chemicals and transfer to batch
 class Pipe:
 	def __init__(self, x, y, length, width, batch_converter):
