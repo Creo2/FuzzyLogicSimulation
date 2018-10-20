@@ -3,51 +3,12 @@ import pygame
 import numpy
 import random
 from colour import get_colors,Color
+from button import Button, mousebuttondown
 # Defining my colours
 
 
 output_rate = numpy.zeros(100,int)
 colours = get_colors()
-# *************************\ NONE FUZZY LOGIC RELATED FUNCTIONS /*************************
-class Button():
-    def __init__(self, txt, location, action, input, size=(80, 30), font_name="georgia", font_size=16):
-        self.color 	= Color.WHITE  # the static (normal) color
-        self.bg 	= Color.WHITE  # actual background color, can change on mouseover
-        self.fg 	= Color.BLACK  # text color
-        self.size 	= size
-        self.font = pygame.font.SysFont(font_name, font_size)
-        self.txt = txt
-        self.txt_surf = self.font.render(self.txt, 1, self.fg.value)
-        self.txt_rect = self.txt_surf.get_rect(center=[s//2 for s in self.size])
-		
-        self.surface = pygame.surface.Surface(size)
-        self.rect = self.surface.get_rect(center=location)
-		
-        self.call_back_ = action
-        self.input = input
-		
-		
-    def draw(self):
-        self.mouseover()
-
-        self.surface.fill(self.bg.value)
-        self.surface.blit(self.txt_surf, self.txt_rect)
-        screen.blit(self.surface, self.rect)
-
-    def mouseover(self):
-        self.bg = self.color
-        pos = pygame.mouse.get_pos()
-        if self.rect.collidepoint(pos):
-            self.bg = Color.GRAY  # mouseover color
-
-    def call_back(self):
-        self.call_back_(self.input)
-		
-def mousebuttondown(buttons, controller):
-	pos = pygame.mouse.get_pos()
-	for button in buttons:
-		if button.rect.collidepoint(pos):
-			button.call_back()
 
 
 # Chemical class
@@ -621,30 +582,30 @@ controller.updateControls([
 
 # Add controller buttons
 buttons = []
-buttons.append(Button("Rule set 1", ( 90, 50), setupRuleSet1, controller))
-buttons.append(Button("Rule set 2", (190, 50), setupRuleSet2, controller))
-buttons.append(Button("Rule set 3", (290, 50), setupRuleSet3, controller))
+buttons.append(Button(screen,"Rule set 1", ( 90, 50), setupRuleSet1, controller))
+buttons.append(Button(screen,"Rule set 2", (190, 50), setupRuleSet2, controller))
+buttons.append(Button(screen,"Rule set 3", (290, 50), setupRuleSet3, controller))
 
 y = 126+(3.25*size[1]/10)
-buttons.append(Button("+", (120, y), increateDemand, controller, (20, 20)))
-buttons.append(Button("-", (160, y), decreateDemand, controller, (20, 20)))
+buttons.append(Button(screen,"+", (120, y), increateDemand, controller, (20, 20)))
+buttons.append(Button(screen,"-", (160, y), decreateDemand, controller, (20, 20)))
 
 y = 150
 for source in sources:
-	buttons.append(Button("+", (120, y), increaseThres, source, (20, 20)))
-	buttons.append(Button("-", (160, y), decreaseThres, source, (20, 20)))
+	buttons.append(Button(screen,"+", (120, y), increaseThres, source, (20, 20)))
+	buttons.append(Button(screen,"-", (160, y), decreaseThres, source, (20, 20)))
 	y += 25
 
 y = 150
 x = 140+(1.6*size[0]/10)
 
 for reactors in batchReactors:
-	buttons.append(Button("+", (x,    y), increaseRR, reactors, (20, 20)))
-	buttons.append(Button("-", (x+40, y), decreaseRR, reactors, (20, 20)))
+	buttons.append(Button(screen,"+", (x,    y), increaseRR, reactors, (20, 20)))
+	buttons.append(Button(screen,"-", (x+40, y), decreaseRR, reactors, (20, 20)))
 	y += 40
 
 
-resetButton = Button("Reset Simulation", (500, 550), resetSimulation, controller, (130, 30))
+resetButton = Button(screen,"Reset Simulation", (500, 550), resetSimulation, controller, (130, 30))
 resetButton.color = Color.RED
 buttons.append(resetButton)
 
