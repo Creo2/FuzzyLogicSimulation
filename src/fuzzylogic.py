@@ -2,33 +2,22 @@ import sys
 import pygame
 import numpy
 import random
-
+from colour import get_colors,Color
 # Defining my colours
-BLACK = (0, 0, 0)
-GRAY = (150, 150, 150)
-LIGHTGRAY = (200, 200, 200)
-MEDGRAY = (175, 175, 175)
-WHITE = (255, 255, 255)
-RED = (150, 0, 0)
-GREEN = (100, 200, 100)
-DARKGREEN = (0, 100, 0)
-BLUE = (0, 0, 150)
-CYAN = (50, 220, 220)
-YELLOW = (220, 220, 50)
-colours = [RED, GREEN, CYAN, BLUE, DARKGREEN, YELLOW, BLACK, GRAY]
-output_rate = numpy.zeros(100,int)
 
+
+output_rate = numpy.zeros(100,int)
+colours = get_colors()
 # *************************\ NONE FUZZY LOGIC RELATED FUNCTIONS /*************************
 class Button():
     def __init__(self, txt, location, action, input, size=(80, 30), font_name="georgia", font_size=16):
-        self.color 	= WHITE  # the static (normal) color
-        self.bg 	= WHITE  # actual background color, can change on mouseover
-        self.fg 	= BLACK  # text color
+        self.color 	= Color.WHITE  # the static (normal) color
+        self.bg 	= Color.WHITE  # actual background color, can change on mouseover
+        self.fg 	= Color.BLACK  # text color
         self.size 	= size
-		
         self.font = pygame.font.SysFont(font_name, font_size)
         self.txt = txt
-        self.txt_surf = self.font.render(self.txt, 1, self.fg)
+        self.txt_surf = self.font.render(self.txt, 1, self.fg.value)
         self.txt_rect = self.txt_surf.get_rect(center=[s//2 for s in self.size])
 		
         self.surface = pygame.surface.Surface(size)
@@ -41,7 +30,7 @@ class Button():
     def draw(self):
         self.mouseover()
 
-        self.surface.fill(self.bg)
+        self.surface.fill(self.bg.value)
         self.surface.blit(self.txt_surf, self.txt_rect)
         screen.blit(self.surface, self.rect)
 
@@ -49,7 +38,7 @@ class Button():
         self.bg = self.color
         pos = pygame.mouse.get_pos()
         if self.rect.collidepoint(pos):
-            self.bg = GRAY  # mouseover color
+            self.bg = Color.GRAY  # mouseover color
 
     def call_back(self):
         self.call_back_(self.input)
@@ -67,7 +56,7 @@ class Chemical:
 		self.ctype = ctype
 
 	def render(self,x,y):
-		pygame.draw.circle(screen, colours[self.ctype], (x,y), 5, 0)
+		pygame.draw.circle(screen, self.ctype, (x,y), 5, 0)
 # Pipe class - contain the chemicals and transfer to batch
 class Pipe:
 	def __init__(self, x, y, length, width, batch_converter):
@@ -92,7 +81,7 @@ class Pipe:
 		self.contents[0] = 0
 
 	def render(self):
-		pygame.draw.rect(screen, BLACK, (self.x, self.y, self.length, self.width), 1)
+		pygame.draw.rect(screen, Color.BLACK.value, (self.x, self.y, self.length, self.width), 1)
 		new_x = self.x + 10*int(self.length/abs(self.length))
 		new_y = self.y + 10*int(self.width/abs(self.width))
 		index = 0
@@ -132,7 +121,7 @@ class BatchConverter:
 		self.name 		= name
 		self.font_size 	= 28
 		self.font 		= pygame.font.SysFont("georgia", self.font_size)
-		self.color 		= BLACK
+		self.color 		= Color.BLACK
 		self.font.set_bold(1)
 		
 		
@@ -156,13 +145,13 @@ class BatchConverter:
 					return 1
 		return 0
 	def render(self):
-		pygame.draw.rect(screen, GRAY, (self.x, self.y, 60,60),0)
+		pygame.draw.rect(screen, Color.GRAY.value, (self.x, self.y, 60,60),0)
 		liqLevel = 55*(self.chemSum/100)
-		pygame.draw.rect(screen, BLUE, (self.x+45, self.y+55-liqLevel, 10, liqLevel),0)
+		pygame.draw.rect(screen, Color.BLUE.value, (self.x+45, self.y+55-liqLevel, 10, liqLevel),0)
 		self.font_size = 28
-		screen.blit(self.font.render(self.name, True, self.color), [self.x+20, self.y+12])
-		screen.blit(self.font.render(str(self.chance), True, self.color), [self.x-20, self.y-12])
-		screen.blit(self.font.render(str(numpy.count_nonzero(output_rate)), True, self.color), [900, 500])
+		screen.blit(self.font.render(self.name, True, self.color.value), [self.x+20, self.y+12])
+		screen.blit(self.font.render(str(self.chance), True, self.color.value), [self.x-20, self.y-12])
+		screen.blit(self.font.render(str(numpy.count_nonzero(output_rate)), True, self.color.value), [900, 500])
 	def adapt(self):
 		self.chemSum = 0
 		for chem in self.chemicals:
@@ -173,13 +162,13 @@ class BatchConverter:
 		y = 550
 		w = 15
 		h = 5
-		screen.blit(self.font.render(self.name, True, self.color), [x+5, y + 20])
+		screen.blit(self.font.render(self.name, True, self.color.value), [x+5, y + 20])
 			
 		index = 0
 		while (index < len(self.chemicals)):
 			if (self.creqs[index] == 1):
 				height = min(self.chemicals[index]*h,250)
-				pygame.draw.rect(screen, colours[index], (x,y-height,w,height),0)
+				pygame.draw.rect(screen, colours[index].value, (x,y-height,w,height),0)
 				x+=w
 			index+=1
 	def fuzzify(self):
@@ -222,7 +211,7 @@ class ChemicalSource:
 		self.thres 		= 100
 		self.total 		= 0
 		self.chance 	= chance
-		self.color 		= BLACK
+		self.color 		= Color.BLACK
 		
 	def adapt(self):
 		nb = self.pipes[0].output
@@ -240,8 +229,8 @@ class ChemicalSource:
 					
 	def render(self):
 		screen.blit(self.font.render(self.name + "=" + str(round(self.chance,2)),
-					True, self.color), [self.x, self.y - 20])
-		pygame.draw.rect(screen,colours[self.ctype], (self.x, self.y, 20, 20),0)
+					True, self.color.value), [self.x, self.y - 20])
+		pygame.draw.rect(screen,colours[self.ctype].value, (self.x, self.y, 20, 20),0)
 
 		
 # *************************\  FUZZY LOGIC & CONTROLLER /*************************
@@ -264,7 +253,7 @@ class Controller:
 		
 		self.font_size		= 14
 		self.font			= pygame.font.SysFont("georgia", self.font_size)
-		self.color			= BLACK
+		self.color			= Color.BLACK
 		self.controlName	= "None"
 	
 	# for inputing rules into the control matrix
@@ -656,7 +645,7 @@ for reactors in batchReactors:
 
 
 resetButton = Button("Reset Simulation", (500, 550), resetSimulation, controller, (130, 30))
-resetButton.color = RED
+resetButton.color = Color.RED
 buttons.append(resetButton)
 
 # Begin game loop
@@ -699,38 +688,38 @@ while (exit_flag == 0):
 			last_time = new_time
 			
 	# Wash with clean background
-	screen.fill(WHITE)
+	screen.fill(Color.WHITE.value)
 	# Draw UI
-	pygame.draw.rect(screen, LIGHTGRAY, (0, 0, 4*size[0]/10, size[1]), 0)
-	pygame.draw.rect(screen, MEDGRAY, (25, 100, 1.6*size[0]/10, 3.25*size[1]/10), 0)
-	pygame.draw.rect(screen, MEDGRAY, (50+(1.6*size[0]/10), 100, 1.6*size[0]/10, 3.25*size[1]/10), 0)
-	pygame.draw.rect(screen, MEDGRAY, (25, 110+(3.25*size[1]/10), 1.6*size[0]/10, 30), 0)
+	pygame.draw.rect(screen, Color.LIGHTGRAY.value, (0, 0, 4*size[0]/10, size[1]), 0)
+	pygame.draw.rect(screen, Color.MEDGRAY.value, (25, 100, 1.6*size[0]/10, 3.25*size[1]/10), 0)
+	pygame.draw.rect(screen, Color.MEDGRAY.value, (50+(1.6*size[0]/10), 100, 1.6*size[0]/10, 3.25*size[1]/10), 0)
+	pygame.draw.rect(screen, Color.MEDGRAY.value, (25, 110+(3.25*size[1]/10), 1.6*size[0]/10, 30), 0)
 	
 	
 	screen.blit(controller.font.render("Source Threshold", True, 
-				controller.color), [25+(0.25*size[0]/10), 110])
+				controller.color.value), [25+(0.25*size[0]/10), 110])
 	screen.blit(controller.font.render("Reactor Threshold", True, 
-				controller.color), [50+(1.825*size[0]/10), 110])
+				controller.color.value), [50+(1.825*size[0]/10), 110])
 	screen.blit(controller.font.render("Demand: " + str(controller.requiredOut), True, 
-				controller.color), [30, 115+(3.25*size[1]/10)])
+				controller.color.value), [30, 115+(3.25*size[1]/10)])
 	
 	y = 140
 	for source in sources:
 		screen.blit(controller.font.render(source.name + ": " + str(source.thres), True, 
-					controller.color), [30, y])
+					controller.color.value), [30, y])
 		y += 25
 		
 	y = 140
 	x = 55 + (1.6*size[0]/10)
 	for reactors in batchReactors:
 		screen.blit(controller.font.render(reactors.name + ": " + str(round(reactors.reactRate, 3)), 
-					True, controller.color), [x, y])
+					True, controller.color.value), [x, y])
 		y += 40
 	
 	screen.blit(controller.font.render("Current Rule Set: " + controller.controlName, 
-				True, controller.color), [120, 10])
+				True, controller.color.value), [120, 10])
 	screen.blit(controller.font.render("Steps: " + str(controller.steps), True, 
-				controller.color), [920, 5])
+				controller.color.value), [920, 5])
 	
 	
 	for button in buttons:
