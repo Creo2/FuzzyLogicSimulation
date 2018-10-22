@@ -94,7 +94,7 @@ class BatchConverter:
 			if (pipe.contents[0] == 0):
 				self.total += self.chance
 				if (self.total >= self.thres):
-					self.total %= (self.thres + 1)
+					self.total %= self.thres
 					#Actually outputted a chemical
 					self.chemicals = temp
 					pipe.contents[0] = Chemical(self.ctype)
