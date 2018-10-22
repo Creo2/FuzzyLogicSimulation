@@ -25,6 +25,8 @@ class Controller:
 		self.font			= pygame.font.SysFont("georgia", self.font_size)
 		self.color			= Color.BLACK
 		self.controlName	= "None"
+		self.membership_names = ["Trapezoidal", "Uniform", "Gaussian"]
+		self.membership_f 	= 0
 	
 	# for inputing rules into the control matrix
 	def updateControls(self, ruleComps):
@@ -83,7 +85,7 @@ class Controller:
 	def getInputs(self):
 		i = 0
 		for batchRect in self.batchReactors:
-			batchRect.fuzzify()
+			batchRect.fuzzify(self.membership_f)
 			for fuzzy in batchRect.chemifuzzy:
 					for val in fuzzy:
 						self.input[0,i] = val

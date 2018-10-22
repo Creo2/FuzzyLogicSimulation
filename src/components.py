@@ -112,7 +112,7 @@ class BatchConverter:
 		self.chemSum = 0
 		for chem in self.chemicals:
 			self.chemSum += chem
-		self.chance = self.basechance + (min(self.chemSum*self.reactRate,75))
+		self.chance = self.basechance + (min(round(self.chemSum*self.reactRate,1),75))
 	def report(self, draw_x, screen):
 		x = draw_x
 		y = 550
@@ -127,27 +127,52 @@ class BatchConverter:
 				pygame.draw.rect(screen, colours[index].value, (x,y-height,w,height),0)
 				x+=w
 			index+=1
-	def fuzzify(self):
+	def fuzzify(self, membership_f):
 		index = 0
 		while (index < len(self.chemicals)):
-			#Apply Fuzzy Logic Membership Function
+			#Apply the correct Fuzzy Logic Membership Function
 			chem = self.chemicals[index]
-			if (chem < 10):
-				low = 100 - chem*10
-				med = 100 - low
-				high = 0
-			elif (chem < 20):
-				low = 0
-				med = 100
-				high = 0
-			elif (chem < 30):
-				low = 0
-				med = 300 - chem*10
-				high = 100 - med
-			else:
-				low = 0
-				med = 0
-				high = 100
+			if (membership_f == 0):
+				#Trapezoidal: 0 = [100,0,0] 10 = [0,100,0] 20 = [0,100,0], 30 = [0,0,100] with linear shifts in regions
+				if (chem < 10):
+					low = 100 - chem*10
+					med = 100 - low
+					high = 0
+				elif (chem < 20):
+					low = 0
+					med = 100
+					high = 0
+				elif (chem < 30):
+					low = 0
+					med = 300 - chem*10
+					high = 100 - med
+				else:
+					low = 0
+					med = 0
+					high = 100
+			if (membership_f == 1):
+				#Uniform: [100,0,0] from 0->15, [0,100,0] from 15->30 and [0,0,100] from 30+
+				if (chem < 15):
+					low = 100
+					med = 0
+					high = 0
+				elif (chem < 30):
+					low = 0
+					med = 100
+					high = 0
+				else :
+					low = 0
+					med = 0
+					high = 100
+			if (membership_f == 2):
+				#Gaussian Approximation
+				#Negative Quadratics, shifted to suit function.
+				low = max(100 - chem*chem,0)
+				med = max(100 - (chem-15)*(chem-15),0)
+				high = max(100 - (chem-30)*(chem-30),0)
+				if (chem >= 30):
+					high = 100
+			
 			self.chemifuzzy[index] = [low,med,high]
 			index+=1
 			
@@ -179,8 +204,9 @@ class ChemicalSource:
 		for pipe in self.pipes:
 			if (pipe.contents[0] == 0):
 				self.total += self.chance*random.uniform(0.8, 1.2)
+				print(self.total)
 				if (self.total > self.thres):
-					self.total %= (self.thres + 1)
+					self.total %= (self.thres)
 					pipe.contents[0] = Chemical(self.ctype)
 					
 	def render(self,screen):

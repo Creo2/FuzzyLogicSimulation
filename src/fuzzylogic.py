@@ -308,6 +308,11 @@ while (exit_flag == 0):
 			# User hit the S key -> START/STOP Auto flow
 			if event.key == pygame.K_s:
 				auto = not auto
+			# User hit the M key -> toggle membership function
+			if event.key == pygame.K_m:
+				controller.membership_f += 1
+				if (controller.membership_f > 2):
+					controller.membership_f = 0
 				
 			# User hit SPACE -> Force flow
 			if event.key == pygame.K_SPACE:
@@ -363,6 +368,8 @@ while (exit_flag == 0):
 	
 	screen.blit(controller.font.render("Current Rule Set: " + controller.controlName, 
 				True, controller.color.value), [120, 10])
+	screen.blit(controller.font.render("Current Membership Function: " + controller.membership_names[controller.membership_f], 
+				True, controller.color.value), [60, 80])
 	screen.blit(controller.font.render("Steps: " + str(controller.steps), True, 
 				controller.color.value), [920, 5])
 	
